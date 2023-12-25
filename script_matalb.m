@@ -139,25 +139,40 @@ table_labels_train.fault_position_SV = vector_fault_position_SV_train'
          vector_fault_position_SV_percent_train(x) = 100
      else
     switch  table_labels_train.fault_position_SV(x)
-        case 'SV1'
+        case 1
              vector_fault_position_SV_percent_train(x) = table_labels_train.SV1(x)
      end
     switch  table_labels_train.fault_position_SV(x)
-         case 'SV2'
+         case 2
              vector_fault_position_SV_percent_train(x) = table_labels_train.SV2(x)
     end
         switch  table_labels_train.fault_position_SV(x)
-         case 'SV3'
+         case 3
              vector_fault_position_SV_percent_train(x) = table_labels_train.SV3(x)
         end
             switch  table_labels_train.fault_position_SV(x)
-         case 'SV4'
+         case 4
              vector_fault_position_SV_percent_train(x) = table_labels_train.SV4(x)
         end
      end
  end
 
 table_labels_train.fault_position_SV_percent = vector_fault_position_SV_percent_train'
+
+%% tabelle finali per train
+table_labels_train_normal_abnormal = table_labels_train(:, [1, 17, 16])
+
+table_labels_train_anomaly_fault = table_labels_train(:, [1, 18, 16])
+table_labels_train_anomaly_fault =  table_labels_train_anomaly_fault((table_labels_train_anomaly_fault.anomaly_fault) ~= 0, :)
+
+table_labels_train_anomaly_position_BP_BV = table_labels_train(:, [1, 19, 16])
+table_labels_train_anomaly_position_BP_BV =  table_labels_train_anomaly_position_BP_BV((table_labels_train_anomaly_position_BP_BV.anomaly_position_BP_BV) ~= 0, :)
+
+table_labels_train_fault_position_SV = table_labels_train(:, [1, 20, 16])
+table_labels_train_fault_position_SV =  table_labels_train_fault_position_SV((table_labels_train_fault_position_SV.fault_position_SV) ~= 0, :)
+
+table_labels_train_fault_position_SV_percent = table_labels_train(:, [1, 21, 16])
+table_labels_train_fault_position_SV_percent =  table_labels_train_fault_position_SV_percent((table_labels_train_fault_position_SV_percent.fault_position_SV_percent) ~= 100, :)
 
 %% correzione table_labels_test, considerando:
 % - abbiamo solo situazioni di fault e anomaly
@@ -178,6 +193,26 @@ table_labels_test = renamevars(table_labels_test,"task4","fault_position_SV")
 
 % creazione colonna "fault_position_SV_percent"
 table_labels_test = renamevars(table_labels_test,"task5","fault_position_SV_percent")
+
+%% tabelle finali per test
+table_labels_test_normal_abnormal = table_labels_test(:, [1, 2, 7])
+table_labels_test_normal_abnormal = renamevars(table_labels_test_normal_abnormal,["id"],["Var1"])
+
+table_labels_test_anomaly_fault = table_labels_test(:, [1, 3, 7])
+table_labels_test_anomaly_fault =  table_labels_test_anomaly_fault((table_labels_test_anomaly_fault.anomaly_fault) ~= 0, :)
+table_labels_test_anomaly_fault = renamevars(table_labels_test_anomaly_fault,["id"],["Var1"])
+
+table_labels_test_anomaly_position_BP_BV = table_labels_test(:, [1, 4, 7])
+table_labels_test_anomaly_position_BP_BV =  table_labels_test_anomaly_position_BP_BV((table_labels_test_anomaly_position_BP_BV.anomaly_position_BP_BV) ~= 0, :)
+table_labels_test_anomaly_position_BP_BV = renamevars(table_labels_test_anomaly_position_BP_BV,["id"],["Var1"])
+
+table_labels_test_fault_position_SV = table_labels_test(:, [1, 5, 7])
+table_labels_test_fault_position_SV =  table_labels_test_fault_position_SV((table_labels_test_fault_position_SV.fault_position_SV) ~= 0, :)
+table_labels_test_fault_position_SV = renamevars(table_labels_test_fault_position_SV,["id"],["Var1"])
+
+table_labels_test_fault_position_SV_percent = table_labels_test(:, [1, 6, 7])
+table_labels_test_fault_position_SV_percent =  table_labels_test_fault_position_SV_percent((table_labels_test_fault_position_SV_percent.fault_position_SV_percent) ~= 100, :)
+table_labels_test_fault_position_SV_percent = renamevars(table_labels_test_fault_position_SV_percent,["id"],["Var1"])
 
 %% commentati
 %[1.3] classificazione normal o abnormal
