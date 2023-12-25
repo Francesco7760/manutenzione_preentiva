@@ -1,2 +1,2 @@
-# manutenzione_preentiva
+# manutenzione_preventiva
 progetto manutenzione preventiva
