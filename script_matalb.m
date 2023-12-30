@@ -10,7 +10,7 @@
 
 % import file xlsx delle labels
 table_labels_train = readtable('dataset/train/labels.xlsx');
-table_labels_test = readtable('dataset/submission.csv');
+table_labels_test = readtable('dataset/test/labels_spacecraft.xlsx');
 
 % importare i files csv
 file_train = dir(fullfile('dataset/train/data/', '*.csv'));
@@ -174,45 +174,354 @@ table_labels_train_fault_position_SV =  table_labels_train_fault_position_SV((ta
 table_labels_train_fault_position_SV_percent = table_labels_train(:, [1, 21, 16])
 table_labels_train_fault_position_SV_percent =  table_labels_train_fault_position_SV_percent((table_labels_train_fault_position_SV_percent.fault_position_SV_percent) ~= 100, :)
 
-%% correzione table_labels_test, considerando:
-% - abbiamo solo situazioni di fault e anomaly
-% - le percentuali sulla aperture degli ugelli delle valvole devono essere: 0, 25, 50, 75, 100 
-table_labels_test = table_labels_test(table_labels_test.task2 ~= 1, :)
+%% caricamento tabella features test, per classificare tutti i dati di test
+load('table_features_test.mat')
 
-% creazione colonna "normal_abnormal"
-table_labels_test = renamevars(table_labels_test,"task1","normal_abnormal")
+%% classificazione dati di test
+%% classificazione "normal_abnormal"
+load('ensemble_boosted_tree_normal_abnormal.mat')
+[data_classification_normal_abnormal, scores_data_classification_normal_abnormal] = ensemble_boosted_tree_normal_abnormal.predictFcn(table_features_test)
+data_classification_normal_abnormal = [table_features_test.Case_, data_classification_normal_abnormal]
 
-% creazione colonna "anomaly_fault"
-table_labels_test = renamevars(table_labels_test,"task2","anomaly_fault")
+[r_2, c_2] = size(table_labels_test)
+z = 1
+for x=1:r_2
+    vector_summ_normal_abnormal(x,1) = data_classification_normal_abnormal(z,1)
+    vector_summ_normal_abnormal(x,2) = data_classification_normal_abnormal(z,2) + data_classification_normal_abnormal(z+1,2) + data_classification_normal_abnormal(z+2,2)
+    z = z + 3
+end
 
-% creazione colonna "anomaly_position_BP_BV"
-table_labels_test = renamevars(table_labels_test,"task3","anomaly_position_BP_BV")
+% determinare le situazioni di normalità
+% per ogni Case_ abbiamo 3 elementi classificati
+% - Case_ con 3 membri = 0 ->  situazione "normal" (0)
+% - Case_ con 1 o più membri diversi da 0 -> situazione "abnormal" (1)
 
-% creazione colonna "fault_position_SV"
-table_labels_test = renamevars(table_labels_test,"task4","fault_position_SV")
+for x=1:r_2 
+    if vector_summ_normal_abnormal(x,2) >= 1
+        vector_result_classification_normal_abnormal(x) = 1
+        vector_case_result_clssification_normal_abnormal(x) = vector_summ_normal_abnormal(x,1)
+            else 
+        vector_result_classification_normal_abnormal(x) = 0
+        vector_case_result_clssification_normal_abnormal(x) = vector_summ_normal_abnormal(x,1)
+    end
+    vector_signal_result_classification_normal_abnormal(x) = table_labels_test(table_labels_test.Case_ == vector_summ_normal_abnormal(x,1), :).Case_Table
+end
 
-% creazione colonna "fault_position_SV_percent"
-table_labels_test = renamevars(table_labels_test,"task5","fault_position_SV_percent")
+result_classification_normal_abnormal = table
+result_classification_normal_abnormal.Case_ = vector_case_result_clssification_normal_abnormal'
+result_classification_normal_abnormal.normal_abnormal= vector_result_classification_normal_abnormal'
+result_classification_normal_abnormal.Case_Table = vector_signal_result_classification_normal_abnormal'
 
-%% tabelle finali per test
-table_labels_test_normal_abnormal = table_labels_test(:, [1, 2, 7])
-table_labels_test_normal_abnormal = renamevars(table_labels_test_normal_abnormal,["id"],["Var1"])
+%% caricamento tabella feaures dei dati di test per "anomaly_fault"
+load("table_features_test_anomaly_fault.mat")
 
-table_labels_test_anomaly_fault = table_labels_test(:, [1, 3, 7])
-table_labels_test_anomaly_fault =  table_labels_test_anomaly_fault((table_labels_test_anomaly_fault.anomaly_fault) ~= 0, :)
-table_labels_test_anomaly_fault = renamevars(table_labels_test_anomaly_fault,["id"],["Var1"])
+%% classificazione "anomaly_fault"
+% consideriamo solo le situizoni abnormali quindi:% per semplificazione consideriamo solo situazioni di:
+% - anomaly = 2
+% - fault = 3
+% "table_features_test_anomaly_fault" tabella che contiene le features dei dati da classificare 
+table_labels_test_anomaly_fault = result_classification_normal_abnormal((result_classification_normal_abnormal.normal_abnormal) == 1,: )
+load('ensemble_bagged_tree_anomaly_fault.mat')
 
-table_labels_test_anomaly_position_BP_BV = table_labels_test(:, [1, 4, 7])
-table_labels_test_anomaly_position_BP_BV =  table_labels_test_anomaly_position_BP_BV((table_labels_test_anomaly_position_BP_BV.anomaly_position_BP_BV) ~= 0, :)
-table_labels_test_anomaly_position_BP_BV = renamevars(table_labels_test_anomaly_position_BP_BV,["id"],["Var1"])
+[data_classification_anomaly_fault, scores_data_classification_anomaly_fault] = ensemble_bagged_tree_anomaly_fault.predictFcn(table_features_test_anomaly_fault)
+data_classification_anomaly_fault = [table_features_test_anomaly_fault.Case_, data_classification_anomaly_fault]
 
-table_labels_test_fault_position_SV = table_labels_test(:, [1, 5, 7])
-table_labels_test_fault_position_SV =  table_labels_test_fault_position_SV((table_labels_test_fault_position_SV.fault_position_SV) ~= 0, :)
-table_labels_test_fault_position_SV = renamevars(table_labels_test_fault_position_SV,["id"],["Var1"])
+[r_3,c_3] = size(table_labels_test_anomaly_fault)
 
-table_labels_test_fault_position_SV_percent = table_labels_test(:, [1, 6, 7])
-table_labels_test_fault_position_SV_percent =  table_labels_test_fault_position_SV_percent((table_labels_test_fault_position_SV_percent.fault_position_SV_percent) ~= 100, :)
-table_labels_test_fault_position_SV_percent = renamevars(table_labels_test_fault_position_SV_percent,["id"],["Var1"])
+for x=1:r_3
+    count_2 = 0
+    count_3 = 0
+    for y= 1:3         
+        switch data_classification_anomaly_fault(y + (x-1)*3,2) 
+            case 2
+                count_2 = count_2 + 1
+            case 3
+                count_3 = count_3 + 1
+        end
+ end
+        if count_2 == 3
+            vector_case_result_clssification_anomaly_fault(x) = data_classification_anomaly_fault(x*3 ,1)
+            vector_result_classification_anomaly_fault(x) = 2    
+            
+        elseif count_3 == 3
+            vector_case_result_clssification_anomaly_fault(x) = data_classification_anomaly_fault(x*3,1)
+            vector_result_classification_anomaly_fault(x) = 3
+        
+        else
+            vector_case_result_clssification_anomaly_fault(x) = data_classification_anomaly_fault(x*3,1)
+            vector_result_classification_anomaly_fault(x) = 1
+       
+    end
+    vector_signal_result_classification_anomaly_fault(x) = table_labels_test_anomaly_fault.Case_Table(x)
+
+end
+
+result_classification_anomaly_fault = table
+result_classification_anomaly_fault.Case_ = vector_case_result_clssification_anomaly_fault'
+result_classification_anomaly_fault.anomaly_fault= vector_result_classification_anomaly_fault'
+result_classification_anomaly_fault.Case_Table = vector_signal_result_classification_anomaly_fault'
+
+%% caricamento tabella feaures dei dati di test per "anomaly_position_BP_BV"
+load("table_features_test_anomaly_position_BP_BV.mat")
+%% classificazione "anomaly_position_BP_BV"
+% iniziamo con il determinare le solo situazioni di anomaly dal precedente
+% risultato:
+% - 1 = BP1  
+% - 2 = BP2  
+% - 3 = BP3 
+% - 4 = BP4  
+% - 5 = BPV5 
+% - 6 = BP6  
+% - 7 = BP7 
+% - 8 = BV1
+% - -1 = unknown
+% "table_features_test_anomaly_position_BP_BV" tabella che contiene le features dei dati da classificare
+table_labels_test_anomaly_position_BP_BV = result_classification_anomaly_fault((result_classification_anomaly_fault.anomaly_fault) == 2,: )
+load("ensemble_boosted_trees_anomaly_position_BP_BV.mat")
+
+[data_classification_anomaly_position_BP_BV, scores_data_classification_anomaly_position_BP_BV] = ensemble_boosted_trees_anomaly_position_BP_BV.predictFcn(table_features_test_anomaly_position_BP_BV)
+data_classification_anomaly_position_BP_BV = [table_features_test_anomaly_position_BP_BV.Case_, data_classification_anomaly_position_BP_BV]
+
+[r_4,c_4] = size(table_labels_test_anomaly_position_BP_BV)
+
+for x=1:r_4
+    count_1 = 0
+    count_2 = 0
+    count_3 = 0
+    count_4 = 0
+    count_5 = 0
+    count_6 = 0
+    count_7 = 0
+    count_8 = 0
+    for y= 1:3         
+        switch data_classification_anomaly_position_BP_BV(y + (x-1)*3,2) 
+            case 1
+                count_1 = count_1 + 1
+            case 2
+                count_2 = count_2 + 1
+            case 3
+                count_3 = count_3 + 1
+            case 4
+                count_4 = count_4 + 1
+            case 5
+                count_5 = count_5 + 1
+            case 6
+                count_6 = count_6 + 1
+            case 7
+                count_7 = count_7 + 1
+            case 8
+                count_8 = count_8 + 1
+        end
+ end
+        if count_1 == 3
+            vector_case_result_clssification_anomaly_position_BP_BV(x) = data_classification_anomaly_position_BP_BV(x*3 ,1)
+            vector_result_classification_anomaly_position_BP_BV(x) = 1    
+            
+        elseif count_2 == 3
+            vector_case_result_clssification_anomaly_position_BP_BV(x) = data_classification_anomaly_position_BP_BV(x*3 ,1)
+            vector_result_classification_anomaly_position_BP_BV(x) = 2
+        elseif count_3 == 3
+            vector_case_result_clssification_anomaly_position_BP_BV(x) = data_classification_anomaly_position_BP_BV(x*3 ,1)
+            vector_result_classification_anomaly_position_BP_BV(x) = 3
+        elseif count_4 == 3
+            vector_case_result_clssification_anomaly_position_BP_BV(x) = data_classification_anomaly_position_BP_BV(x*3 ,1)
+            vector_result_classification_anomaly_position_BP_BV(x) = 4
+        elseif count_5 == 3
+             vector_case_result_clssification_anomaly_position_BP_BV(x) = data_classification_anomaly_position_BP_BV(x*3 ,1)
+            vector_result_classification_anomaly_position_BP_BV(x) = 5
+        elseif count_6 == 3
+             vector_case_result_clssification_anomaly_position_BP_BV(x) = data_classification_anomaly_position_BP_BV(x*3 ,1)
+            vector_result_classification_anomaly_position_BP_BV(x) = 6
+        elseif count_7 == 3
+             vector_case_result_clssification_anomaly_position_BP_BV(x) = data_classification_anomaly_position_BP_BV(x*3 ,1)
+            vector_result_classification_anomaly_position_BP_BV(x) = 7
+        elseif count_8 == 3
+             vector_case_result_clssification_anomaly_position_BP_BV(x) = data_classification_anomaly_position_BP_BV(x*3 ,1)
+            vector_result_classification_anomaly_position_BP_BV(x) = 8
+        
+        else
+            vector_case_result_clssification_anomaly_position_BP_BV(x) = data_classification_anomaly_position_BP_BV(x*3,1)
+            vector_result_classification_anomaly_position_BP_BV(x) = -1
+       
+    end
+    vector_signal_result_classification_anomaly_position_BP_BV(x) = table_labels_test_anomaly_position_BP_BV.Case_Table(x)
+
+end
+
+result_classification_anomaly_position_BP_BV = table
+result_classification_anomaly_position_BP_BV.Case_ = vector_case_result_clssification_anomaly_position_BP_BV'
+result_classification_anomaly_position_BP_BV.anomaly_position_BP_BV= vector_result_classification_anomaly_position_BP_BV'
+result_classification_anomaly_position_BP_BV.Case_Table = vector_signal_result_classification_anomaly_position_BP_BV'
+
+%% caricamento tabella feaures dei dati di test per "fault_position_SV"
+load("table_features_test_fault_position_SV.mat")
+%% classificazione "fault_position_SV"
+% iniziamo con il determinare le solo situazioni di fault dal precedente:
+% 1 = SV1  
+% 2 = SV2 
+% 3 = SV3 
+% 4 = SV4
+% -1 = unknown
+table_labels_test_fault_position_SV = result_classification_anomaly_fault((result_classification_anomaly_fault.anomaly_fault) == 3,: )
+load("ensemble_subspace_KNN_fault_position_SV.mat")
+
+[data_classification_fault_position_SV, scores_data_classification_fault_position_SV] = ensemble_subspace_KNN_fault_position_SV.predictFcn(table_features_test_fault_position_SV)
+data_classification_fault_position_SV = [table_features_test_fault_position_SV.Case_, data_classification_fault_position_SV]
+
+[r_5,c_5] = size(table_labels_test_fault_position_SV)
+
+for x=1:r_5
+    count_1 = 0
+    count_2 = 0
+    count_3 = 0
+    count_4 = 0
+    for y= 1:3         
+        switch data_classification_fault_position_SV(y + (x-1)*3,2) 
+            case 1 
+                count_1 = count_1 + 1
+            case 2
+                count_2 = count_2 + 1
+            case 3
+                count_3 = count_3 + 1
+            case 4 
+                count_4 = count_4 + 1
+        end
+ end
+        if count_1 == 3
+            vector_case_result_clssification_fault_position_SV(x) = data_classification_fault_position_SV(x*3 ,1)
+            vector_result_classification_fault_position_SV(x) = 1    
+            
+        elseif count_2 == 3
+            vector_case_result_clssification_fault_position_SV(x) = data_classification_fault_position_SV(x*3,1)
+            vector_result_classification_fault_position_SV(x) = 2 
+
+        elseif count_3 == 3
+            vector_case_result_clssification_fault_position_SV(x) = data_classification_fault_position_SV(x*3,1)
+            vector_result_classification_fault_position_SV(x) = 3
+
+        elseif count_4 == 3
+            vector_case_result_clssification_fault_position_SV(x) = data_classification_fault_position_SV(x*3,1)
+            vector_result_classification_fault_position_SV(x) = 4 
+        
+        else
+            vector_case_result_clssification_fault_position_SV(x) = data_classification_fault_position_SV(x*3,1)
+            vector_result_classification_fault_position_SV(x) = -1
+       
+    end
+    vector_signal_result_classification_fault_position_SV(x) = table_labels_test_fault_position_SV.Case_Table(x)
+
+end
+
+result_classification_fault_position_SV = table
+result_classification_fault_position_SV.Case_ = vector_case_result_clssification_fault_position_SV'
+result_classification_fault_position_SV.fault_position_SV= vector_result_classification_fault_position_SV'
+result_classification_fault_position_SV.Case_Table = vector_signal_result_classification_fault_position_SV'
+
+%% caricamento tabella feaures dei dati di test per "fault_position_SV_percent"
+load("table_features_test_fault_position_SV_percent.mat")
+
+%% classificazione "fault_position_SV_percent"
+% iniziamo con il determinare le percentuali per ogni fault:
+% 0 = 0%  
+% 25 = 25% 
+% 50 = 50% 
+% 75 = 75%
+% -1 = unknown
+load("ensemble_subspace_KNN_fault_position_SV_percent.mat")
+
+[data_classification_fault_position_SV_percent, scores_data_classification_fault_position_SV_percent] = ensemble_subspace_KNN_fault_position_SV_percent.predictFcn(table_features_test_fault_position_SV)
+data_classification_fault_position_SV_percent = [table_features_test_fault_position_SV.Case_, data_classification_fault_position_SV_percent]
+
+[r_5,c_5] = size(table_labels_test_fault_position_SV)
+
+for x=1:r_5
+    count_0 = 0
+    count_25 = 0
+    count_50 = 0
+    count_75 = 0
+    for y= 1:3         
+        switch data_classification_fault_position_SV_percent(y + (x-1)*3,2) 
+            case 0
+                count_0 = count_0 + 1
+            case 25
+                count_25 = count_25 + 1
+            case 50
+                count_50 = count_50 + 1
+            case 75
+                count_75 = count_75 + 1
+        end
+ end
+        if count_0 == 3
+            vector_case_result_clssification_fault_position_SV_percent(x) = data_classification_fault_position_SV_percent(x*3 ,1)
+            vector_result_classification_fault_position_SV_percent(x) = 0    
+            
+        elseif count_25 == 3
+            vector_case_result_clssification_fault_position_SV_percent(x) = data_classification_fault_position_SV_percent(x*3,1)
+            vector_result_classification_fault_position_SV_percent(x) = 25 
+
+        elseif count_50 == 3
+            vector_case_result_clssification_fault_position_SV_percent(x) = data_classification_fault_position_SV_percent(x*3,1)
+            vector_result_classification_fault_position_SV_percent(x) = 50
+
+        elseif count_75 == 3
+            vector_case_result_clssification_fault_position_SV_percent(x) = data_classification_fault_position_SV_percent(x*3,1)
+            vector_result_classification_fault_position_SV_percent(x) = 75 
+        
+        else
+            vector_case_result_clssification_fault_position_SV_percent(x) = data_classification_fault_position_SV_percent(x*3,1)
+            vector_result_classification_fault_position_SV_percent(x) = -1
+       
+    end
+    vector_signal_result_classification_fault_position_SV_percent(x) = table_labels_test_fault_position_SV.Case_Table(x)
+
+end
+
+result_classification_fault_position_SV_percent = table
+result_classification_fault_position_SV_percent.Case_ = vector_case_result_clssification_fault_position_SV_percent'
+result_classification_fault_position_SV_percent.fault_position_SV_percent= vector_result_classification_fault_position_SV_percent'
+result_classification_fault_position_SV_percent.Case_Table = vector_signal_result_classification_fault_position_SV_percent'
+
+%% ################################
+
+% %% correzione table_labels_test, considerando:
+% % - abbiamo solo situazioni di fault e anomaly
+% % - le percentuali sulla aperture degli ugelli delle valvole devono essere: 0, 25, 50, 75, 100 
+% table_labels_test = table_labels_test(table_labels_test.task2 ~= 1, :)
+% 
+% % creazione colonna "normal_abnormal"
+% table_labels_test = renamevars(table_labels_test,"task1","normal_abnormal")
+% 
+% % creazione colonna "anomaly_fault"
+% table_labels_test = renamevars(table_labels_test,"task2","anomaly_fault")
+% 
+% % creazione colonna "anomaly_position_BP_BV"
+% table_labels_test = renamevars(table_labels_test,"task3","anomaly_position_BP_BV")
+% 
+% % creazione colonna "fault_position_SV"
+% table_labels_test = renamevars(table_labels_test,"task4","fault_position_SV")
+% 
+% % creazione colonna "fault_position_SV_percent"
+% table_labels_test = renamevars(table_labels_test,"task5","fault_position_SV_percent")
+% 
+% %% tabelle finali per test
+% table_labels_test_normal_abnormal = table_labels_test(:, [1, 2, 7])
+% table_labels_test_normal_abnormal = renamevars(table_labels_test_normal_abnormal,["id"],["Var1"])
+% 
+% table_labels_test_anomaly_fault = table_labels_test(:, [1, 3, 7])
+% table_labels_test_anomaly_fault =  table_labels_test_anomaly_fault((table_labels_test_anomaly_fault.anomaly_fault) ~= 0, :)
+% table_labels_test_anomaly_fault = renamevars(table_labels_test_anomaly_fault,["id"],["Var1"])
+% 
+% table_labels_test_anomaly_position_BP_BV = table_labels_test(:, [1, 4, 7])
+% table_labels_test_anomaly_position_BP_BV =  table_labels_test_anomaly_position_BP_BV((table_labels_test_anomaly_position_BP_BV.anomaly_position_BP_BV) ~= 0, :)
+% table_labels_test_anomaly_position_BP_BV = renamevars(table_labels_test_anomaly_position_BP_BV,["id"],["Var1"])
+% 
+% table_labels_test_fault_position_SV = table_labels_test(:, [1, 5, 7])
+% table_labels_test_fault_position_SV =  table_labels_test_fault_position_SV((table_labels_test_fault_position_SV.fault_position_SV) ~= 0, :)
+% table_labels_test_fault_position_SV = renamevars(table_labels_test_fault_position_SV,["id"],["Var1"])
+% 
+% table_labels_test_fault_position_SV_percent = table_labels_test(:, [1, 6, 7])
+% table_labels_test_fault_position_SV_percent =  table_labels_test_fault_position_SV_percent((table_labels_test_fault_position_SV_percent.fault_position_SV_percent) ~= 100, :)
+% table_labels_test_fault_position_SV_percent = renamevars(table_labels_test_fault_position_SV_percent,["id"],["Var1"])
 
 %% commentati
 %[1.3] classificazione normal o abnormal
