@@ -9,7 +9,7 @@ Per eseguire lo script basta caricarlo in **Matlab** e dare il **Run** direttame
 Inoltre sono presenti varie sessioni di **Diagnostic Features Design** e **Classification Learner** utlizzate per portare a termine l'analisi, il contenuto e il ruole delle stesse è spiegato al interno della documentazione.
 
 ## Struttura directory 
-##
+
 La directory principale è cosi suddivisa:
 ### /dataset
 contiene i dataset per il trainin e i dati da classificare
