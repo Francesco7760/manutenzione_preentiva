@@ -12,9 +12,9 @@ Inoltre sono presenti varie sessioni di **Diagnostic Features Design** e **Class
 
 La directory principale è cosi suddivisa:
 ### /dataset
-contiene i dataset per il trainin e i dati da classificare
+contiene i dataset per il training e i dati da classificare
 
-### sessioni di Diagiodti Features Design
+### sessioni di Diagniostic Features Designer
 - features_train_normal_abnormal.mat
 - features_train_anomaly_fault.mat
 - features_train_anomaly_position_BP_BV.mat
