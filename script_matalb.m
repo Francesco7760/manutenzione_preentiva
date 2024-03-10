@@ -530,7 +530,7 @@ for x=1:r_5
     count_50 = 0
     count_75 = 0
     for y= 1:3         
-        switch (y + (x-1)*3,2) 
+        switch data_classification_fault_position_SV_percent(y + (x-1)*3,2) 
             case 0
                 count_0 = count_0 + 1
             case 25
